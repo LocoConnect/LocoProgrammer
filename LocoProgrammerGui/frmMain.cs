@@ -403,7 +403,11 @@ namespace LocoProgrammer
                 uint val = lncLocoReader.GetCVValue(CustDefines.CVADDRESS.CV_ACCESSORY_BOOTLOADER_VERSION);
                 if (val != 0 && val != 0xFFFF)
                 {
-                    lblBootloaderVersion.Text = (val >> 4).ToString() + "." + (val & 0xF).ToString();
+                    lblBootloaderVersion.Text = ((val >> 4) & 0x7).ToString() + "." + (val & 0xF).ToString();
+                    if ((val & 0x80) == 0x80)
+                    {
+                        lblBootloaderVersion.Text += " (VLX)";
+                    }
                 }
                 else
                 {
@@ -547,6 +551,12 @@ namespace LocoProgrammer
             cmbSerialPorts.Text = "COM7";
             this.Text = this.Text + " [" + Assembly.GetExecutingAssembly().GetName().Version.ToString() + "] - " + Assembly.GetExecutingAssembly().GetLinkerTime();
             LoadSettings();
+            for(int i = 1; i < 128; i++)
+            {
+                cmbStartIndex.Items.Add(i.ToString());
+            }
+            cmbStartIndex.SelectedIndex = 0;
+
         }
 
         private void btnConnect_Click(object sender, EventArgs e)
@@ -584,6 +594,7 @@ namespace LocoProgrammer
                 return;
             }
 
+            btnWatchOccupation.Enabled = true;
             btnConnect.Visible = false;
             btnConnect.Enabled = true;
             btnDisconnect.Visible = true;
@@ -889,6 +900,8 @@ namespace LocoProgrammer
                         //btnReadAspect.BackColor = Color.Transparent;
                         //btnWriteAspect.BackColor = Color.Transparent;
                         CurrentAspectIsDirty = false;
+
+                        txtDescription_ButtonClick(sender, e);
                     }
                     else
                     {
@@ -1037,14 +1050,18 @@ namespace LocoProgrammer
                 {
                     LoconetComs.Disconnect();
                 }
-                LoconetComs.LoconetFrameRecieved -= LoconetComs_LoconetFrameRecieved;
-                LoconetComs.LoconetConnectionClosed -= LoconetComs_LoconetConnectionClosed;
+                if (LoconetComs != null)
+                {
+                    LoconetComs.LoconetFrameRecieved -= LoconetComs_LoconetFrameRecieved;
+                    LoconetComs.LoconetConnectionClosed -= LoconetComs_LoconetConnectionClosed;
+                }
 
             }
             catch { }
             LoconetComs = null;
             lnDeviceList = null;
             btnConnect.Visible = true;
+            btnWatchOccupation.Enabled = false;
             btnDisconnect.Visible = false;
             rbLocoSerial.Enabled = true;
             cmbSerialSpeed.Enabled = true;
@@ -1584,6 +1601,17 @@ namespace LocoProgrammer
         {
             AspectDescriptionHelper.UpdateOrAddDescription($"{selectedLncsDevice.DeviceID}-{selectedLncsDevice.DeviceAddres}", previousSelectedIndexAspect, txtDescription.Text);
             txtDescription.OriginalText = txtDescription.Text;
+        }
+
+        private void btnWatchOccupation_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                frmMonitorOccupation frm = new frmMonitorOccupation(this.LoconetComs, ((uint.Parse(cmbStartIndex.Text) - 1) * 16) + 1);
+                frm.Show(this);
+            }
+            catch { }
+
         }
     }
 }
